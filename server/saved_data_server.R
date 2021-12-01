@@ -25,6 +25,9 @@ saved_data_server <- function(input, output, session) {
   
   observeEvent(c(input$select_orthologous,input$orthologous),{
     path_old <- getwd()
+    print(db@dir)
+    print(db@working.path)
+    
     try({
       if(input$select_orthologous == "upload"){
         if(!is.null(input$orthologous)){
@@ -98,8 +101,8 @@ saved_data_server <- function(input, output, session) {
         DB$all_studies[[x]]@MCMC)
       #print(paste("length of mcmc.list:", length(mcmc.list), sep=""))
       if(is.null(DB$full_ortholog)){
-        data(hm_orth)
-        DB$full_ortholog <- hm_orth
+        data(hs_mm_orth, package = "CAMO")
+        DB$full_ortholog <- hs_mm_orth
       }
       #print(paste("ref number :", which(species == input$reference)[1], sep=""))
       mcmc.merge.list <- CAMO::merge(mcmc.list, species = species,

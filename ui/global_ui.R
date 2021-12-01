@@ -8,7 +8,7 @@ global_ui <- function(id, label = "Global") {
                ## Global ARS/ADS
                selectInput(ns("measure"), label = "Score type", 
                            choices = list("F-measure (recommended)" = "Fmeasure",
-                                          "Youden" = "youden", 
+                                          "Youden index" = "youden", 
                                           "Geometric mean" = "geo.mean")),
                
                numericInput(ns("permNumGlobal"), 
@@ -26,12 +26,12 @@ global_ui <- function(id, label = "Global") {
                tags$hr()
              ),
              mainPanel(
-               tabsetPanel(tabPanel("C-scores & D-scores Table",
-                                    h3("Genome-wide C-scores & D-scores Table"),
+               tabsetPanel(tabPanel("Table of genome-wide c-scores and d-scores",
+                                    h3("Genome-wide c-scores & d-scores"),
                                     textOutput(ns("Global_ACS_ADS_note")),
                                     DT::dataTableOutput(ns("globalACS_ADSTable"))),
-                           tabPanel("MDS Plot",
-                                    h3("MDS Plot"),
+                           tabPanel("Multidimensional scaling (MDS) map",
+                                    h3("MDS map of all studies based on genome-wide c-scores"),
                                     plotOutput(ns("globalMdsFig"), height = 500))
                )
                

@@ -8,7 +8,7 @@ saved_data_ui <- function(id, label = "saved data of single study or multiple st
         actionButton(ns('delete'), 'Delete selected data', icon=icon("trash"), 
           class="btn-danger"),
 	      tags$hr(),
-        selectInput(ns('select_orthologous'), 'Select an orthologs file', 
+        selectInput(ns('select_orthologous'), 'Ortholog file', 
                     c("homo sapiens (hs) vs mus musculus (mm)"="hs_mm_orth",
                       "homo sapiens (hs) vs rattus norvegicus (rn)"="hs_rs_orth",
                       "homo sapiens (hs) vs caenorhabditis elegans (ce)"="hs_ce_orth",

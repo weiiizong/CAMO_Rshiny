@@ -4,10 +4,10 @@ indPathway_ui <- function(id, label = "Individual Pathway") {
            sidebarLayout(
              sidebarPanel(
                h2("Individual pathway results browser"),
-               h3("(i) Pathway c-scores & d-scores table"),
+               h3("(i) Pathway-level c-scores & d-scores"),
                uiOutput(ns("selectPathway")),
                hr(),
-               h3("(ii) Visualizations"),
+               h3("(ii) Visualization of individual pathway"),
                uiOutput(ns("choosePathway")),
                checkboxInput(ns("browser_useACS"), 'Use c-scores to generate results', TRUE),
                checkboxGroupInput(ns('browserVisualizations'), 'Select visualizations to generate',

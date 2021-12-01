@@ -22,13 +22,14 @@ preproc_ui <- function(id, label= "preprocessing data") {
         #         selected = "human"),
         #### chose input data type
         radioButtons(ns("inputType"), label = "Input data type",
-                choices = list("Precalculated p-value" = 1, "Preprocessed gene-expression" = 2),
+                choices = list("Precalculated p-value and log fold change (LFC) from gene-level differential expression analysis" = 1, 
+                               "Preprocessed gene expression data" = 2),
                 selected = 1),
 
         #### if input data are p-values
         conditionalPanel(
           condition = paste0("input['", ns("inputType"), "'] == '1' "),
-          fileInput(ns("pvalfile"), 'Upload p-value and logfc file (.csv)',
+          fileInput(ns("pvalfile"), 'Upload p-value and LFC file (.csv)',
             accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv'))
           ),
 
@@ -39,7 +40,7 @@ preproc_ui <- function(id, label= "preprocessing data") {
                         choices = list("microarray" = "microarray", 
                           "RNAseq" = "RNAseq"),
                           selected = "microarray"),
-          fileInput(ns("exprfile"), 'Upload gene-expression data file (.csv)',
+          fileInput(ns("exprfile"), 'Upload gene expression data file (.csv)',
             accept=c('text/csv', 'text/comma-separated-values,text/plain', 
               '.csv')
           ),
