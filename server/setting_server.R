@@ -29,8 +29,10 @@ setting_server <- function(input, output, session) {
     },
     handlerExpr = {
       if (input$directory > 0) {
-        path = choose.dir(default = readDirectoryInput(session, 'directory'))
-        if(is.na(path)) {
+        #path = choose.dir(default = readDirectoryInput(session, 'directory'))
+        path = rstudioapi::selectDirectory(path = readDirectoryInput(session, 'directory'))
+        print(path)
+        if(length(path) == 0) {
           sendErrorMessage(session, MSG.no.working.dir)
         } else {
           updateDirectoryInput(session, 'directory', value = path)

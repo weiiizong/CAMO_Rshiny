@@ -74,8 +74,8 @@ pathway_server <- function(input, output, session){
                                      "Biocarta"=biocarta.pathway.list,
                                      "PID"=pid.pathway.list,
                                      "Wiki"=wiki.pathway.list,
-                                     "KEGG_worm"=worm.pathway.list[grep("KEGG",names(worm.pathway.list))],
-                                     "Reactome_worm"=worm.pathway.list[grep("Reactome",names(worm.pathway.list))])
+                                     "KEGG_cel"=worm.pathway.list[grep("KEGG",names(worm.pathway.list))],
+                                     "Reactome_CEL"=worm.pathway.list[grep("Reactome",names(worm.pathway.list))])
       pathway.list = unlist(full.pathway.list.short[input$pathwayfile_ex],recursive = F)
       names(pathway.list) = sapply(strsplit(names(pathway.list),".",fixed = T),function(x) paste(x[-1],collapse = "_"))
     }
@@ -218,10 +218,16 @@ pathway_server <- function(input, output, session){
         load(file$datapath)
         hashtb = get(load(file$datapath))
       }
-    }else if(input$select_hashtbfile == "human_text"){
-      data(hashtb_human)
-    }else if(input$select_hashtbfile == "worm_text"){
-      data(hashtb_worm)
+    }else if(input$select_hashtbfile == "hsa_text"){
+      data(hashtb_hsa)
+    }else if(input$select_hashtbfile == "cel_text"){
+      data(hashtb_cel)
+    }else if(input$select_hashtbfile == "mmu_text"){
+      data(hashtb_mmu)
+    }else if(input$select_hashtbfile == "rno_text"){
+      data(hashtb_rno)
+    }else if(input$select_hashtbfile == "dme_text"){
+      data(hashtb_dme)
     }else{
       hashtb = NULL
     }

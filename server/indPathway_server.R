@@ -67,7 +67,7 @@ indPathway_server <- function(input, output, session){
     }
     if ("keggView" %in% input$selectVisualizations) {
       output$keggViewSelect = renderUI({
-        bsCollapsePanel("Settings for keggView",
+        bsCollapsePanel("Settings for topological visualization",
                         hr(),
                         textInput(ns("keggSpecies"), "KEGG organisms code", "hsa"),
                         radioButtons(ns("KEGG.dataGisEntrezID"), "Gene names in data matrix are Entrez IDs?", choices = list("TRUE" = "TRUE", "FALSE" = "FALSE"), selected = "FALSE"),
@@ -83,7 +83,7 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
     }
     if ("reactomeView" %in% input$selectVisualizations) {
       output$reactomeViewSelect = renderUI({
-        bsCollapsePanel("Settings for reactomeView",
+        bsCollapsePanel("Settings for topological visualization",
                         hr(),
                         textInput(ns("reactomeSpecies"), "Reactome organisms code", "HSA"),
                         fileInput(ns("reactomeGenesfile"), "Upload a data frame mapping (merged) gene names in data [column1] to to gene names in Reactome topology [column2] (.RData/.rda). 
@@ -98,16 +98,16 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
     }
     if(("keggView" %in% input$selectVisualizations) && ("reactomeView" %in% input$selectVisualizations)) {
       output$keggViewSelect = renderUI({
-        bsCollapsePanel("Settings for keggView and reactomeView",
+        bsCollapsePanel("Settings for topological visualization",
                         hr(),
-                        textInput(ns("keggSpecies"), "KEGG organisms code", "hsa"),
+                        textInput(ns("keggSpecies"), "KEGG organism code", "hsa"),
                         radioButtons(ns("KEGG.dataGisEntrezID"), "Gene names in data matrix are Entrez IDs?", choices = list("TRUE" = "TRUE", "FALSE" = "FALSE"), selected = "FALSE"),
                         fileInput(ns("keggGenesfile"), "Upload a data frame mapping (merged) gene names in data [column1] to 
-Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the question above & KEGG organisms code is one of 'hsa', 'mmu','rno, 'cel' or 'dme', gene symbols will be automatically mapped to Entrez IDs by Bioconductor packages
+Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the question above & KEGG organism code is one of 'hsa', 'mmu','rno, 'cel' or 'dme', gene symbols will be automatically mapped to Entrez IDs by Bioconductor packages
                                     'org.Hs.eg.db', 'org.Mm.eg.db', 'org.Rn.eg.db', 'org.Ce.eg.db' or 'org.Dm.eg.db'", accept = c(".RData","rda")),
                         fileInput(ns("keggIDfile"), "Upload a list mapping pathway names [content] to KEGG IDs [name] (.RData/.rda). If not provided, ID will be retrieved from KEGGREST.", accept = c(".RData","rda")),
                         hr(),
-                        textInput(ns("reactomeSpecies"), "Reactome organisms code", "HSA"),
+                        textInput(ns("reactomeSpecies"), "Reactome organism code", "HSA"),
                         fileInput(ns("reactomeGenesfile"), "Upload a data frame mapping (merged) gene names in data [column1] to to gene names in Reactome topology [column2] (.RData/.rda). 
                                   If not provided, it assumes the gene names in data matrix and topology plots are the same type.", accept = c(".RData","rda")),
                         fileInput(ns("reactomeIDfile"), "Upload a list mapping pathway names [content] to Reactome IDs [name] (.RData/.rda). If not provided, ID will be retrieved from reactome.db", accept = c(".RData","rda")),
@@ -180,7 +180,6 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
       DB$reactomeGenesfile=reactomeGenesfile
       # load("res_clustPath.RData")
       # res$CluterLabelwithoutScatter
-      ADS_cluster = !input$useADS
       keggViewSelect <- grep(paste(input$keggViewSelected,collapse="|"), 
                              DB$MergedStudyNames, value=FALSE)
       setwd(DB.load.working.dir(db))
@@ -190,7 +189,7 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
                   select.pathway.list=DB$pathway.list,
                   DB$ACS_ADS_pathway,
                   output=input$selectVisualizations,
-                  use_ADS = !input$useADS,
+                  use_ADS = ifelse(input$save_scoreType == "d_scores",TRUE,FALSE),
                   ViewPairSelect = keggViewSelect, 
                   kegg.species = input$keggSpecies, KEGG.dataGisEntrezID=ifelse(input$KEGG.dataGisEntrezID=="TRUE",TRUE,FALSE),
                   KEGG.dataG2EntrezID = keggGenesfile,KEGG.pathID2name=keggIDfile,
@@ -274,7 +273,7 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
         }
 
         
-        if(input$browser_useACS){
+        if(input$browser_scoreType == "c_scores"){
           selectedPathwayAS = DB$ACS_ADS_pathway$ACS.mat[selectPathwayName,]
           selectedPathwaypAS = DB$ACS_ADS_pathway$ACSpvalue.mat[selectPathwayName,]
         }else{
@@ -1040,23 +1039,35 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
   # Render output/UI       #
   ##########################
   # upload gene names mapping
+  # output$MD_choosekeggGenes_dat_map = renderUI({
+  #   if(input$MD_KEGG.dataGisTopologyG=='FALSE' & input$MD_KEGGspecies %in% c('hsa','mmu','rno')){
+  #     list(selectInput(ns('select_keggGenes_dat_map'), 'Matching options', 
+  #                 c("Match gene symbols to Entrez ID by Bioconductor package"="bioc",
+  #                   "Upload a file"="upload"),
+  #                 selected = NULL),
+  #     uiOutput(ns("upload_keggGenes_dat_maps")))
+  #   }else if(input$MD_KEGG.dataGisTopologyG=='FALSE' & input$MD_KEGGspecies %in% c('cel')){
+  #     list(selectInput(ns('select_keggGenes_dat_map'), 'Matching options',
+  #                      c("Match gene symbols to to WormBase sequence name by Bioconductor package 'biomaRt'"="bioc",
+  #                        "Upload a file"="upload"),
+  #                      selected = NULL),
+  #          uiOutput(ns("upload_keggGenes_dat_maps")))
+  #   }else if(input$MD_KEGG.dataGisTopologyG=='FALSE' & input$MD_KEGGspecies %in% c('dme')){
+  #     list(selectInput(ns('select_keggGenes_dat_map'), 'Matching options',
+  #                      c("Match gene symbols to FlyBase CG IDs by Bioconductor package 'org.Dm.eg.db'"="bioc",
+  #                        "Upload a file"="upload"),
+  #                      selected = NULL),
+  #          uiOutput(ns("upload_keggGenes_dat_maps")))
+  #   }else if(input$MD_KEGG.dataGisTopologyG=='FALSE' & !input$MD_KEGGspecies %in% c('hsa','mmu','rno','cel','dme')){
+  #     uiOutput(ns("upload_keggGenes_dat_maps"))
+  #   }
+  # })
+
   output$MD_choosekeggGenes_dat_map = renderUI({
-    if(input$MD_KEGG.dataGisTopologyG=='FALSE' & input$MD_KEGGspecies %in% c('hsa','mmu','rno')){
-      list(selectInput(ns('select_keggGenes_dat_map'), 'Match gene names in data to gene names in KEGG topology plots', 
-                  c("Match gene symbols to Entrez ID by Bioconductor package"="bioc",
-                    "Upload a file"="upload"),
-                  selected = NULL),
-      uiOutput(ns("upload_keggGenes_dat_maps")))
-    }else if(input$MD_KEGG.dataGisTopologyG=='FALSE' & input$MD_KEGGspecies %in% c('cel')){
-      list(selectInput(ns('select_keggGenes_dat_map'), 'Match gene names in data to gene names in KEGG topology plots',
-                       c("Match gene symbols to to WormBase sequence name by Bioconductor package 'biomaRt'"="bioc",
-                         "Upload a file"="upload"),
-                       selected = NULL),
-           uiOutput(ns("upload_keggGenes_dat_maps")))
-    }else if(input$MD_KEGG.dataGisTopologyG=='FALSE' & input$MD_KEGGspecies %in% c('dme')){
-      list(selectInput(ns('select_keggGenes_dat_map'), 'Match gene names in data to gene names in KEGG topology plots',
-                       c("Match gene symbols to FlyBase CG IDs by Bioconductor package 'org.Dm.eg.db'"="bioc",
-                         "Upload a file"="upload"),
+    if(input$MD_KEGG.dataGisTopologyG=='FALSE' & input$MD_KEGGspecies %in% c('hsa','mmu','rno','cel','dme')){
+      list(selectInput(ns('select_keggGenes_dat_map'), 'Matching options', 
+                       c("Mapping by Bioconductor"="bioc",
+                         "Upload mapping file"="upload"),
                        selected = NULL),
            uiOutput(ns("upload_keggGenes_dat_maps")))
     }else if(input$MD_KEGG.dataGisTopologyG=='FALSE' & !input$MD_KEGGspecies %in% c('hsa','mmu','rno','cel','dme')){
@@ -1064,10 +1075,9 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
     }
   })
   
-  
   output$upload_keggGenes_dat_maps = renderUI({
     if(input$select_keggGenes_dat_map == "upload"){
-      fileInput(ns("keggGenes_dat_map"), "Upload a data frame to match gene names in data to gene names in KEGG topology plots (.RData/.rda)", accept = c(".RData",".rda"))
+      fileInput(ns("keggGenes_dat_map"), "Upload a data frame to match gene names in studies to KEGG topology plots (.RData/.rda)", accept = c(".RData",".rda"))
     }
   })
   
@@ -1079,7 +1089,7 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
   
   
   output$choosePathway = renderUI({
-    selectInput(ns('chosenPathway'), 'Select pathways:',
+    selectInput(ns('chosenPathway'), 'Select a pathway:',
                 rownames(DB$ACS_ADS_pathway$ACS.mat))
   })
   
@@ -1153,12 +1163,12 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
     }
     if ("keggView" %in% input$browserVisualizations) {
       output$KEGG_panel <- renderUI({
-        bsCollapsePanel("Settings for keggView",
+        bsCollapsePanel("Settings for topological visualization",
                         hr(),
-                        textInput(ns("keggSpecies2"), "KEGG organisms code", "hsa"),
+                        textInput(ns("keggSpecies2"), "KEGG organism code", "hsa"),
                         radioButtons(ns("KEGG.dataGisEntrezID2"), "Gene names in data matrix are Entrez IDs?", choices = list("TRUE" = "TRUE", "FALSE" = "FALSE"), selected = "FALSE"),
                         fileInput(ns("keggGenesfile2"), "Upload a data frame mapping (merged) gene names in data [column1] to 
-Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the question above & KEGG organisms code is one of 'hsa', 'mmu','rno, 'cel' or 'dme', gene symbols will be automatically mapped to Entrez IDs by Bioconductor packages
+Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the question above & KEGG organism code is one of 'hsa', 'mmu','rno, 'cel' or 'dme', gene symbols will be automatically mapped to Entrez IDs by Bioconductor packages
                                     'org.Hs.eg.db', 'org.Mm.eg.db', 'org.Rn.eg.db', 'org.Ce.eg.db' or 'org.Dm.eg.db'", accept = c(".RData","rda")),
                         fileInput(ns("keggIDfile2"), "Upload a list mapping pathway names [content] to KEGG IDs [name] (.RData/.rda). If not provided, ID will be retrieved from KEGGREST.", accept = c(".RData","rda")),
                         checkboxGroupInput(ns('keggViewSelected2'), 'Select a subset of studies to generalize Kegg topology plots',
@@ -1169,9 +1179,9 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
     }
     if ("reactomeView" %in% input$browserVisualizations) {
       output$Reactome_panel <- renderUI({
-        bsCollapsePanel("Settings for reactomeView",
+        bsCollapsePanel("Settings for topological visualization",
                         hr(),
-                        textInput(ns("reactomeSpecies2"), "Reactome organisms code", "HSA"),
+                        textInput(ns("reactomeSpecies2"), "Reactome organism code", "HSA"),
                         fileInput(ns("reactomeGenesfile2"), "Upload a data frame mapping (merged) gene names in data [column1] to to gene names in Reactome topology [column2] (.RData/.rda). 
                                   If not provided, it assumes the gene names in data matrix and topology plots are the same type.", accept = c(".RData","rda")),
                         fileInput(ns("reactomeIDfile2"), "Upload a list mapping pathway names [content] to Reactome IDs [name] (.RData/.rda). If not provided, ID will be retrieved from reactome.db", accept = c(".RData","rda")),
@@ -1184,16 +1194,16 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
     }
     if(("keggView" %in% input$browserVisualizations) && ("reactomeView" %in% input$browserVisualizations)) {
       output$KEGG_panel = renderUI({
-        bsCollapsePanel("Settings for keggView and reactomeView",
+        bsCollapsePanel("Settings for topological visualization",
                         hr(),
-                        textInput(ns("keggSpecies2"), "KEGG organisms code", "hsa"),
+                        textInput(ns("keggSpecies2"), "KEGG organism code", "hsa"),
                         radioButtons(ns("KEGG.dataGisEntrezID2"), "Gene names in data matrix are Entrez IDs?", choices = list("TRUE" = "TRUE", "FALSE" = "FALSE"), selected = "FALSE"),
                         fileInput(ns("keggGenesfile2"), "Upload a data frame mapping (merged) gene names in data [column1] to 
-Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the question above & KEGG organisms code is one of 'hsa', 'mmu','rno, 'cel' or 'dme', gene symbols will be automatically mapped to Entrez IDs by Bioconductor packages
+Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the question above & KEGG organism code is one of 'hsa', 'mmu','rno, 'cel' or 'dme', gene symbols will be automatically mapped to Entrez IDs by Bioconductor packages
                                   'org.Hs.eg.db', 'org.Mm.eg.db', 'org.Rn.eg.db', 'org.Ce.eg.db' or 'org.Dm.eg.db'", accept = c(".RData","rda")),
                         fileInput(ns("keggIDfile2"), "Upload a list mapping pathway names [content] to KEGG IDs [name] (.RData/.rda). If not provided, ID will be retrieved from KEGGREST.", accept = c(".RData","rda")),
                         hr(),
-                        textInput(ns("reactomeSpecies2"), "Reactome organisms code", "HSA"),
+                        textInput(ns("reactomeSpecies2"), "Reactome organism code", "HSA"),
                         fileInput(ns("reactomeGenesfile2"), "Upload a data frame mapping (merged) gene names in data [column1] to to gene names in Reactome topology [column2] (.RData/.rda). 
                                   If not provided, it assumes the gene names in data matrix and topology plots are the same type.", accept = c(".RData","rda")),
                         fileInput(ns("reactomeIDfile2"), "Upload a list mapping pathway names [content] to Reactome IDs [name] (.RData/.rda). If not provided, ID will be retrieved from reactome.db", accept = c(".RData","rda")),
@@ -1203,46 +1213,4 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
       output$Reactome_panel = renderUI({NULL})
     }
   })
-#   observe({
-#     if(("keggView" %in% input$browserVisualizations) && (!"reactomeView" %in% input$browserVisualizations)) {
-#       output$KEGG_panel <- renderUI({
-#         bsCollapsePanel("Settings for keggView generation",
-#                         hr(),
-#                         textInput(ns("keggSpecies2"), "Kegg organisms code", "hsa"),
-#                         fileInput(ns("keggGenesfile2"), "Upload a data frame mapping gene names in data [column1] to Entrez IDs [column2] (.RData/.rda)", accept = c(".RData","rda")),
-#                         checkboxGroupInput(ns('keggViewSelected2'), 'Select a subset of studies to generalize Kegg topology plots',
-#                                            DB$MergedStudyNames, selected = DB$MergedStudyNames))
-#       })
-#       output$Reactome_panel <- renderUI({NULL})
-#     } else if((!"keggView" %in% input$browserVisualizations) && ("reactomeView" %in% input$browserVisualizations)) {
-#       output$Reactome_panel <- renderUI({
-#         bsCollapsePanel("Settings for reactomeView generation",
-#                         hr(),
-#                         textInput(ns("reactomeSpecies2"), "Reactome organisms code", "HSA"),
-#                         fileInput(ns("reactomeGenesfile2"), "Upload a data frame mapping gene names in data [column1] to Entrez IDs [column2] (.RData/.rda)", accept = c(".RData","rda")),
-#                         checkboxGroupInput(ns('keggViewSelected2'), 'Select a subset of studies to generalize Reactome topology plots',
-#                                            DB$MergedStudyNames, selected = DB$MergedStudyNames))
-#         
-#       })
-#       output$KEGG_panel <- renderUI({NULL})
-#     } else if((!"keggView" %in% input$browserVisualizations) && (!"reactomeView" %in% input$browserVisualizations)) {
-#       output$KEGG_panel = renderUI({NULL})
-#       output$Reactome_panel = renderUI({NULL})
-#     } else if(("keggView" %in% input$browserVisualizations) && ("reactomeView" %in% input$browserVisualizations)) {
-#       output$Reactome_panel = renderUI({
-#         bsCollapsePanel("Settings for keggView and reactomeView generation",
-#                         hr(),
-#                         textInput(ns("keggSpecies2"), "Kegg organisms code", "hsa"),
-#                         fileInput(ns("keggGenesfile2"), "Upload a data frame mapping gene names in data [column1] to Entrez IDs [column2] (.RData/.rda)", accept = c(".RData","rda")),
-#                         textInput(ns("reactomeSpecies2"), "reactome organisms code", "HSA"),
-#                         fileInput(ns("reactomeGenesfile2"), "Upload a data frame mapping gene names in data [column1] to Entrez IDs [column2] (.RData/.rda)", accept = c(".RData","rda")),
-#                         checkboxGroupInput(ns('keggViewSelected2'), 'Select a subset of studies to generalize KEGG/Reactome topology plots',
-#                                            DB$MergedStudyNames, selected = DB$MergedStudyNames))
-#       })
-#       output$KEGG_panel = renderUI({NULL})
-#     }
-#   })
-#   
 }
-
-

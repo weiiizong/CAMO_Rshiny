@@ -67,7 +67,7 @@ saved_data_server <- function(input, output, session) {
   output$selected <- renderText({
     selected <- input$table_rows_selected
     if(length(selected) == 0)
-      "You haven't select anything yet"
+      ""
     else
       paste(rownames(meta(db)[selected,]), sep=", ")
     
@@ -83,7 +83,7 @@ saved_data_server <- function(input, output, session) {
       DB$meta <- meta(db)
       DB$all_studies <- DB.load(db, list.files(path=db@dir))
     }else{
-      sendErrorMessage(session, "You haven't select anything yet")
+      sendErrorMessage(session, "You haven't select any study yet")
     }
   })
   
@@ -91,6 +91,13 @@ saved_data_server <- function(input, output, session) {
   observeEvent(input$merge, {
     wait(session, "Match and merge")
     try({
+      # selected <- input$table_rows_selected
+      # if(length(selected) != 0 & !is.null(meta(db))){
+      #   selected <- rownames(meta(db)[selected,])
+      # }else{
+      #   sendErrorMessage(session, "You haven't select any study yet")
+      # }
+      
       species <- sapply(1:length(DB$all_studies), function(x) 
         DB$all_studies[[x]]@species)
       #print(paste("all species:", species, sep=""))

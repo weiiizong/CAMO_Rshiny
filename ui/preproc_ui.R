@@ -70,10 +70,10 @@ preproc_ui <- function(id, label= "preprocessing data") {
       ),
 
       mainPanel(
-        h3("Study Summary"),
+        h3("Study summary"),
         DT::dataTableOutput(ns("studySummary")),
         hr(),
-        h3("Bayesian Differential Analysis Summary"),
+        h3("Bayesian differential analysis summary"),
         textOutput(ns('DEdescription')),
         br(),
         DT::dataTableOutput(ns("DESummary"))
