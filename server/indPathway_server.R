@@ -8,21 +8,15 @@ indPathway_server <- function(input, output, session){
     MergedDB=MergedDB.load(db), 
     MergedSpecies=MergedSpecies.load(db), 
     MergedStudyNames=MergedStudyNames.load(db), 
-    globalACS=NULL, globalACSpvalue=NULL,
-    pathwayACS=NULL, pathwayACSpvalue=NULL,
-    globalADS=NULL, globalADSpvalue=NULL,
-    pathwayADS=NULL, pathwayADSpvalue=NULL,
-    compType=NULL, pathway.list=NULL,
-    pathACS_summary=data.frame(NULL),
-    pathADS_summary=data.frame(NULL),
+    pathway.list=NULL,
     ACS_ADS_global=NULL,
-    ACS_ADS_pathway=NULL,
-    keggSpecies="", keggGenesfile=NULL, 
-    reactomeSpecies="", reactomeGenesfile=NULL,
-    KEGGpathwayID=NULL, gene_type=NULL, 
-    plotall=NULL,
-    MD_data=NULL, MD_size=NULL,
-    MD_whichToDraw=NULL
+    ACS_ADS_pathway=NULL
+    #keggSpecies="", keggGenesfile=NULL, 
+    #reactomeSpecies="", reactomeGenesfile=NULL,
+    #KEGGpathwayID=NULL, gene_type=NULL, 
+    #plotall=NULL,
+    #MD_data=NULL, MD_size=NULL,
+    #MD_whichToDraw=NULL
   )
   ClustDEevid = reactiveValues(res=NULL,DEevid.pos=NULL,DEevid.neg=NULL)
   ##########################
@@ -55,7 +49,7 @@ indPathway_server <- function(input, output, session){
         load(paste0(DB.load.working.dir(db),"/select_pathway.RData"))
         DB$pathway.list = pathway.list
       }
-      print(paste("saving directory is:, ", DB.load.working.dir(db), sep=""))
+      print(paste("saving directory is: ", DB.load.working.dir(db), sep=""))
     }, session)
   })
   
@@ -131,8 +125,6 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
         DB$pathway.list = pathway.list
       }
       
-      DB$keggSpecies = input$keggSpecies
-      
       ### keggView
       if(!is.null(input$keggGenesfile)){
         file <- input$keggGenesfile
@@ -153,9 +145,8 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
       }else{
         keggIDfile=NULL
       }
-      DB$plotall = input$selectVisualization
-      DB$keggSpecies = input$keggSpecies
-      DB$keggGenesfile=keggGenesfile
+      #DB$plotall = input$selectVisualization
+      #DB$keggGenesfile=keggGenesfile
       ### reactomeView
       if(!is.null(input$reactomeGenesfile)){
         file <- input$reactomeGenesfile
@@ -176,12 +167,14 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
       }else{
         reactomeIDfile=NULL
       }
-      DB$reactomeSpecies = input$reactomeSpecies
-      DB$reactomeGenesfile=reactomeGenesfile
+      #DB$reactomeSpecies = input$reactomeSpecies
+      #DB$reactomeGenesfile=reactomeGenesfile
       # load("res_clustPath.RData")
       # res$CluterLabelwithoutScatter
-      keggViewSelect <- grep(paste(input$keggViewSelected,collapse="|"), 
-                             DB$MergedStudyNames, value=FALSE)
+      keggViewSelect <- DB$MergedStudyNames[grep(paste(input$keggViewSelected,collapse="|"), 
+                             DB$MergedStudyNames, value=FALSE)]
+      print(keggViewSelect)
+      
       setwd(DB.load.working.dir(db))
 
       multiOutput(mcmc.merge.list=DB$MergedDB, 
@@ -291,13 +284,13 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
         else{
           keggGenesfile=NULL
         }
-        DB$keggGenesfile=keggGenesfile
+        #DB$keggGenesfile=keggGenesfile
         if(length(DB$MergedDB) > 1) {
           wait(session, "Generating analysis results for selected pathway(s)...")
           
           lapply(1:length(selectPathwayName), function(n){
             ### clear output
-            studyPairs.index = combn(length(DB$MergedStudyNames),2)
+            # studyPairs.index = combn(length(DB$MergedStudyNames),2)
             # lapply(1:ncol(studyPairs.index), function(k){
             #   output[[paste0("keggViewDat",n,k)]] = renderText({})
             #   output[[paste0("keggView",n,k)]] = renderText({
@@ -320,83 +313,88 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
             output[[paste0("clickedPathwayName",n)]] = renderText({paste0(n,". ",selectPathwayName[n])})
             
             #mdsModel
-            if(file.exists(paste(DB.load.working.dir(db),"/mdsModel/", selectPathwayName[n], ".png", sep=""))){
-              output[[paste0("mdsPathway",n)]] = renderImage({
-                img.src <- paste(DB.load.working.dir(db), 
-                                 "/mdsModel/", selectPathwayName[n], ".png", sep="")
-                list(src=img.src, contentType='image/png', alt="module",width=400)
-              }, deleteFile = FALSE)
-              print("mdsModel done")
-            }else{
-              temp.dir = paste0(DB.load.working.dir(db),"/mdsModel")
-              dir.create(temp.dir,recursive = T)
-              setwd(temp.dir)
-              res = mdsModel(unlist(c(selectedPathwayAS[n,])),DB$MergedStudyNames,selectPathwayName[n],sep="_")
-              setwd(path_old)
-              output[[paste0("mdsPathway",n)]] = renderImage({
-                img.src <- paste(DB.load.working.dir(db), 
-                                 "/mdsModel/", selectPathwayName[n], ".png", sep="")
-                list(src=img.src, contentType='image/png', alt="module",width=400)
-              }, deleteFile = FALSE)
-              print("mdsModel done")
+            if("mdsModel" %in% input$browserVisualizations){
+              if(file.exists(paste(DB.load.working.dir(db),"/mdsModel/", selectPathwayName[n], ".png", sep=""))){
+                output[[paste0("mdsPathway",n)]] = renderImage({
+                  img.src <- paste(DB.load.working.dir(db), 
+                                   "/mdsModel/", selectPathwayName[n], ".png", sep="")
+                  list(src=img.src, contentType='image/png', alt="module",width=400)
+                }, deleteFile = FALSE)
+                print("mdsModel done")
+              }else{
+                temp.dir = paste0(DB.load.working.dir(db),"/mdsModel")
+                dir.create(temp.dir,recursive = T)
+                setwd(temp.dir)
+                res = mdsModel(unlist(c(selectedPathwayAS[n,])),DB$MergedStudyNames,selectPathwayName[n],sep="_")
+                setwd(path_old)
+                output[[paste0("mdsPathway",n)]] = renderImage({
+                  img.src <- paste(DB.load.working.dir(db), 
+                                   "/mdsModel/", selectPathwayName[n], ".png", sep="")
+                  list(src=img.src, contentType='image/png', alt="module",width=400)
+                }, deleteFile = FALSE)
+                print("mdsModel done")
+              }
             }
             
             #clustModel
-            if(file.exists(paste(DB.load.working.dir(db),"/clustModel/", selectPathwayName[n], ".png", sep=""))){
-              output[[paste0("clustPathway",n)]] = renderImage({
-                img.src = paste(DB.load.working.dir(db), "/clustModel/", selectPathwayName[n],'.png',sep="")
-                list(src=img.src, contentType='image/png', alt="module",width=400)
-              }, deleteFile = FALSE)
-              print("clustModel done")
-              
-            }else{
-              temp.dir = paste0(DB.load.working.dir(db),"/clustModel")
-              dir.create(temp.dir,recursive = T)
-              setwd(temp.dir)
-              cluster.assign.path = SA_algo(unlist(c(selectedPathwaypAS[n,])),DB$MergedStudyNames,sep="_")
-              if(length(unique(cluster.assign.path))>1 && class(cluster.assign.path) != "try-error" ){
-                res = clustModel(unlist(c(selectedPathwaypAS[n,])),DB$MergedStudyNames,cluster.assign.path,
-                                 selectPathwayName[n],sep="_")
+            if("clustModel" %in% input$browserVisualizations){
+              if(file.exists(paste(DB.load.working.dir(db),"/clustModel/", selectPathwayName[n], ".png", sep=""))){
+                output[[paste0("clustPathway",n)]] = renderImage({
+                  img.src = paste(DB.load.working.dir(db), "/clustModel/", selectPathwayName[n],'.png',sep="")
+                  list(src=img.src, contentType='image/png', alt="module",width=400)
+                }, deleteFile = FALSE)
+                print("clustModel done")
+                
+              }else{
+                temp.dir = paste0(DB.load.working.dir(db),"/clustModel")
+                dir.create(temp.dir,recursive = T)
+                setwd(temp.dir)
+                cluster.assign.path = SA_algo(unlist(c(selectedPathwaypAS[n,])),DB$MergedStudyNames,sep="_")
+                if(length(unique(cluster.assign.path))>1 && class(cluster.assign.path) != "try-error" ){
+                  res = clustModel(unlist(c(selectedPathwaypAS[n,])),DB$MergedStudyNames,cluster.assign.path,
+                                   selectPathwayName[n],sep="_")
+                }
+                if(length(unique(cluster.assign.path))==1 || class(cluster.assign.path) == "try-error" ){
+                  warning("clustModel only identifies one cluster")
+                  res = clustModelOne(unlist(c(selectedPathwaypAS[n,])),DB$MergedStudyNames,
+                                      selectPathwayName[n],sep="_")
+                }
+                setwd(path_old)
+                output[[paste0("clustPathway",n)]] = renderImage({
+                  img.src <- paste(DB.load.working.dir(db), 
+                                   "/clustModel/", selectPathwayName[n], ".png", sep="")
+                  list(src=img.src, contentType='image/png', alt="module",width=400)
+                }, deleteFile = FALSE)
+                print("clustModel done")
               }
-              if(length(unique(cluster.assign.path))==1 || class(cluster.assign.path) == "try-error" ){
-                warning("clustModel only identifies one cluster")
-                res = clustModelOne(unlist(c(selectedPathwaypAS[n,])),DB$MergedStudyNames,
-                                    selectPathwayName[n],sep="_")
-              }
-              setwd(path_old)
-              output[[paste0("clustPathway",n)]] = renderImage({
-                img.src <- paste(DB.load.working.dir(db), 
-                                 "/clustModel/", selectPathwayName[n], ".png", sep="")
-                list(src=img.src, contentType='image/png', alt="module",width=400)
-              }, deleteFile = FALSE)
-              print("clustModel done")
             }
             
             #genePM
-            if(file.exists(paste(DB.load.working.dir(db),"/genePM/", selectPathwayName[n], ".jpeg", sep=""))){
-              output[[paste0("genePM",n)]] = renderImage({
-                img.src <- paste(DB.load.working.dir(db), "/genePM/", selectPathwayName[n],'.jpeg',sep="")
-                list(src=img.src, alt="module",height=400)
-              }, deleteFile = FALSE)
-              print("genePM done")
-              
-            }else{
-              temp.dir = paste0(DB.load.working.dir(db),"/genePM")
-              dir.create(temp.dir,recursive = T)
-              setwd(temp.dir)
-              
-              signPM.list = lapply(DB$MergedDB,function(x) apply(x,1,mean))
-              names(signPM.list) = DB$MergedStudyNames
-              hm = genePM(signPM.list, pathway.genes=DB$pathway.list[[selectPathwayName[n]]],
-                           pathway.name=selectPathwayName[n])
-              setwd(path_old)
-              output[[paste0("genePM",n)]] = renderImage({
-                img.src <- paste(DB.load.working.dir(db), "/genePM/", selectPathwayName[n],'.jpeg',sep="")
-                list(src=img.src, alt="module",height=400)
-              }, deleteFile = FALSE)
-              print("genePM done")
+            if("genePM" %in% input$browserVisualizations){
+              if(file.exists(paste(DB.load.working.dir(db),"/genePM/", selectPathwayName[n], ".png", sep=""))){
+                output[[paste0("genePM",n)]] = renderImage({
+                  img.src <- paste(DB.load.working.dir(db), "/genePM/", selectPathwayName[n],'.png',sep="")
+                  list(src=img.src, alt="module",height=400)
+                }, deleteFile = FALSE)
+                print("genePM done")
+                
+              }else{
+                temp.dir = paste0(DB.load.working.dir(db),"/genePM")
+                dir.create(temp.dir,recursive = T)
+                setwd(temp.dir)
+                
+                signPM.list = lapply(DB$MergedDB,function(x) apply(x,1,mean))
+                names(signPM.list) = DB$MergedStudyNames
+                hm = genePM(signPM.list, pathway.genes=DB$pathway.list[[selectPathwayName[n]]],
+                            pathway.name=selectPathwayName[n])
+                setwd(path_old)
+                output[[paste0("genePM",n)]] = renderImage({
+                  img.src <- paste(DB.load.working.dir(db), "/genePM/", selectPathwayName[n],'.png',sep="")
+                  list(src=img.src, alt="module",height=400)
+                }, deleteFile = FALSE)
+                print("genePM done")
+              }
             }
-            
             
             ViewSelect2 = grep(paste(input$keggViewSelected2,collapse="|"), 
                                     DB$MergedStudyNames, value=FALSE)
@@ -447,7 +445,7 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
                       list(src=img.src, contentType='image/png', alt="module",width = 800)
                     }, deleteFile = FALSE)
                     output[[paste0("keggViewDat",n,c)]] = renderText({
-                      paste0(selectPathwayName[n], " keggView for data pair ",ds1," and ",ds2)
+                      paste0(selectPathwayName[n], " topological plot for data pair ",ds1," and ",ds2)
                     })
                   }else{
                     dir.create(dir.path,recursive = T)
@@ -570,7 +568,7 @@ Entrez IDs [column2] (.RData/.rda). If not provided & choose FALSE in the questi
                       list(src=img.src, contentType='image/png', alt="module",width = 800)
                     }, deleteFile = FALSE)
                     output[[paste0("keggViewDat",n,c)]] = renderText({
-                      paste0(selectPathwayName[n], "  keggView for data pair ",ds1," and ",ds2)
+                      paste0(selectPathwayName[n], "  topological plot for data pair ",ds1," and ",ds2)
                     })
                     
                     setwd(path_old)

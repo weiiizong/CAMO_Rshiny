@@ -8,13 +8,7 @@ global_server <- function(input, output, session){
     MergedDB=MergedDB.load(db), 
     MergedSpecies=MergedSpecies.load(db), 
     MergedStudyNames=MergedStudyNames.load(db), 
-    globalACS=NULL, globalACSpvalue=NULL,
-    pathwayACS=NULL, pathwayACSpvalue=NULL,
-    globalADS=NULL, globalADSpvalue=NULL,
-    pathwayADS=NULL, pathwayADSpvalue=NULL,
-    compType=NULL, pathway.list=NULL,
-    pathACS_summary=data.frame(NULL),
-    pathADS_summary=data.frame(NULL),
+    pathway.list=NULL,
     ACS_ADS_global=NULL,
     ACS_ADS_pathway=NULL
   )
@@ -36,13 +30,13 @@ global_server <- function(input, output, session){
       if(length(unique(DB$MergedSpecies))<2) {
         stop("At least two species are neeeded")
       }
-      if(length(DB$MergedDB)==2 & length(unique(DB$MergedSpecies))==2){
-        DB$compType <- "single"
-      }else{
-        DB$compType <- "multiple"
-      }
+      # if(length(DB$MergedDB)==2 & length(unique(DB$MergedSpecies))==2){
+      #   DB$compType <- "single"
+      # }else{
+      #   DB$compType <- "multiple"
+      # }
     }, session)
-    print(paste("saving directory is:, ", DB.load.working.dir(db), sep=""))
+    print(paste("saving directory is: ", DB.load.working.dir(db), sep=""))
   })
   
   # # select comparison type

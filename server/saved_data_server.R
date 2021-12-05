@@ -7,12 +7,24 @@ saved_data_server <- function(input, output, session) {
   
   observeEvent(input$tabChange, {
     DB$all_studies <- DB.load(db, list.files(path=db@dir))
-    DB$meta <- meta(db)
+    DB$meta <- meta(db)  
+    output$table_merge <- DT::renderDataTable(
+      if(file.exists(paste(DB.load.working.dir(db), 
+                           "MergedDB.rds", sep="/"))){
+        DT::datatable({
+          MergedSpecies=MergedSpecies.load(db) 
+          MergedStudyNames=MergedStudyNames.load(db) 
+          data.frame(MergedSpecies,MergedStudyNames)
+        })
+      }
+    )
   })
   
-  output$table <- DT::renderDataTable(DT::datatable({
-    DB$meta
-  }))
+  output$table <- DT::renderDataTable({
+    df = DB$meta
+    colnames(df) = c("Species","StudyNames")
+    DT::datatable({df})
+    })
   
   # observeEvent(input$orthologous, {
   #   if (!is.null(input$orthologous)) {
@@ -25,8 +37,6 @@ saved_data_server <- function(input, output, session) {
   
   observeEvent(c(input$select_orthologous,input$orthologous),{
     path_old <- getwd()
-    print(db@dir)
-    print(db@working.path)
     
     try({
       if(input$select_orthologous == "upload"){
@@ -66,11 +76,12 @@ saved_data_server <- function(input, output, session) {
   
   output$selected <- renderText({
     selected <- input$table_rows_selected
-    if(length(selected) == 0)
-      ""
-    else
-      paste(rownames(meta(db)[selected,]), sep=", ")
-    
+    if(length(selected) == 0){
+      "You haven't select any study yet"
+    }else{
+      paste(meta(db)[selected,"studyName"], sep=", ")
+      
+    }
   })
   
   observeEvent(input$delete, {
@@ -91,50 +102,56 @@ saved_data_server <- function(input, output, session) {
   observeEvent(input$merge, {
     wait(session, "Match and merge")
     try({
-      # selected <- input$table_rows_selected
-      # if(length(selected) != 0 & !is.null(meta(db))){
-      #   selected <- rownames(meta(db)[selected,])
-      # }else{
-      #   sendErrorMessage(session, "You haven't select any study yet")
-      # }
-      
-      species <- sapply(1:length(DB$all_studies), function(x) 
-        DB$all_studies[[x]]@species)
-      #print(paste("all species:", species, sep=""))
-      studyNames <- sapply(1:length(DB$all_studies), function(x) 
-        DB$all_studies[[x]]@studyName)
-      #print(paste("study names: ",studyNames, sep=""))
-      mcmc.list <- lapply(1:length(DB$all_studies), function(x) 
-        DB$all_studies[[x]]@MCMC)
-      #print(paste("length of mcmc.list:", length(mcmc.list), sep=""))
-      if(is.null(DB$full_ortholog)){
-        data(hs_mm_orth, package = "CAMO")
-        DB$full_ortholog <- hs_mm_orth
+      selected <- input$table_rows_selected
+      if(length(selected) != 0 & !is.null(meta(db))){
+        selected <- as.numeric(rownames(meta(db)[selected,]))
+        species <- sapply(1:length(DB$all_studies), function(x) 
+          DB$all_studies[[x]]@species)[selected]
+        print(species)
+        studyNames <- sapply(1:length(DB$all_studies), function(x) 
+          DB$all_studies[[x]]@studyName)[selected]
+        print(studyNames)
+        
+        mcmc.list <- lapply(1:length(DB$all_studies), function(x) 
+          DB$all_studies[[x]]@MCMC)[selected]
+        if(is.null(DB$full_ortholog)){
+          data(hs_mm_orth, package = "CAMO")
+          DB$full_ortholog <- hs_mm_orth
+        }
+        #print(paste("ref number :", which(species == input$reference)[1], sep=""))
+        mcmc.merge.list <- CAMO::merge(mcmc.list, species = species,
+                                       ortholog.db = DB$full_ortholog, 
+                                       reference=which(species == input$reference)[1])
+        names(mcmc.merge.list) = studyNames
+        #print("finish merge")
+        
+        saveRDS(mcmc.merge.list,
+                file=paste(DB.load.working.dir(db), 
+                           "MergedDB.rds", sep="/"))
+        saveRDS(species, 
+                file=paste(DB.load.working.dir(db), 
+                           "MergedSpecies.rds", sep="/"))
+        saveRDS(studyNames, 
+                file=paste(DB.load.working.dir(db), 
+                           "MergedStudyNames.rds", sep="/"))
+        
+        output$table_merge <- DT::renderDataTable(      
+          DT::datatable({
+          MergedSpecies=MergedSpecies.load(db) 
+          MergedStudyNames=MergedStudyNames.load(db) 
+          data.frame(MergedSpecies,MergedStudyNames)
+        }))
+        
+        message = paste("Data are successfully merged")
+        sendSuccessMessage(session, message)
+      }else{
+        sendErrorMessage(session, "You haven't select any study yet")
       }
-      #print(paste("ref number :", which(species == input$reference)[1], sep=""))
-      mcmc.merge.list <- CAMO::merge(mcmc.list, species = species,
-                                     ortholog.db = DB$full_ortholog, 
-                                     reference=which(species == input$reference)[1])
-      names(mcmc.merge.list) = studyNames
-      #print("finish merge")
-      
-      saveRDS(mcmc.merge.list,
-              file=paste(DB.load.working.dir(db), 
-                         "MergedDB.rds", sep="/"))
-      saveRDS(species, 
-              file=paste(DB.load.working.dir(db), 
-                         "MergedSpecies.rds", sep="/"))
-      saveRDS(studyNames, 
-              file=paste(DB.load.working.dir(db), 
-                         "MergedStudyNames.rds", sep="/"))
-      
-      message = paste("Data are successfully merged")
-      sendSuccessMessage(session, message)
     },session)
     done(session)
   }, label="save study")
   
-  
+
   ##########################
   # Render output/UI       #
   ##########################

@@ -82,104 +82,6 @@ SelectGamma <- function(p){
 
 
 ##########################
-###### ARS functions ###
-##########################
-
-ARSY <- function(d1,d2,index1){
-  Sens <- calcSens(d1[index1,],d2[index1,])
-  Spec <- calcSpec(d1[-index1,],d2[-index1,])
-  ESens <- calcESens(d1,d2)
-  ESpec <- calcESpec(d1,d2)
-  RSY <- Sens + Spec - 1
-  ERSY <- ESens + ESpec - 1
-  ARS <- (RSY - ERSY)/(1-ERSY)
-  if(is.nan(ARS)) {
-    ARS <- 0
-  }
-  return(ARS)
-}
-
-
-ARSF <- function(d1,d2,index1,index2){
-  Sens <- calcSens(d1[index1,],d2[index1,])
-  Prec <- calcPrec(d1[index2,],d2[index2,])
-  ESens <- calcESens(d1,d2)
-  EPrec <- calcEPrec(d1,d2)
-  RSF <- (2*Sens*Prec)/(Sens+Prec)
-  ERSF <- (2*ESens*EPrec)/(ESens+EPrec)
-  ARS<- (RSF - ERSF)/(1-ERSF)
-  if(is.nan(ARS)) {
-    ARS <- 0
-  }
-  return(ARS)
-}
-
-ARSG <- function(d1,d2,index1){
-  Sens <- calcSens(d1[index1,],d2[index1,])
-  Spec <- calcSpec(d1[-index1,],d2[-index1,])
-  ESens <- calcESens(d1,d2)
-  EPrec <- calcEPrec(d1,d2)
-  ESpec <- calcESpec(d1,d2)
-  RSG<- sqrt(Sens*Spec)
-  ERSG <- sqrt(ESens*ESpec)
-  ARS <- (RSG- ERSG)/(1-ERSG)
-  if(is.nan(ARS)) {
-    ARS <- 0
-  }
-  return(ARS)
-}
-
-ARSYperm <- function(d1,d2){
-  Sens <- calcSens(d1,d2)
-  Spec <- calcSpec(d1,d2)
-  ESens <- calcESens(d1,d2)
-  ESpec <- calcESpec(d1,d2)
-  RSY <- Sens + Spec - 1
-  ERSY <- ESens + ESpec - 1
-  ARS <- (RSY - ERSY)/(1-ERSY)
-  if(is.nan(ARS)) {
-    ARS <- 0
-  }
-  return(ARS)
-}
-
-
-ARSFperm <- function(d1,d2){
-  Sens <- calcSens(d1,d2)
-  Prec <- calcPrec(d1,d2)
-  ESens <- calcESens(d1,d2)
-  EPrec <- calcEPrec(d1,d2)
-  RSF <- (2*Sens*Prec)/(Sens+Prec)
-  ERSF <- (2*ESens*EPrec)/(ESens+EPrec)
-  ARS<- (RSF - ERSF)/(1-ERSF)
-  if(is.nan(ARS)) {
-    ARS <- 0
-  }
-  return(ARS)
-}
-
-ARSGperm <- function(d1,d2){
-  Sens <- calcSens(d1,d2)
-  Spec <- calcSpec(d1,d2)
-  ESens <- calcESens(d1,d2)
-  EPrec <- calcEPrec(d1,d2)
-  ESpec <- calcESpec(d1,d2)
-  RSG<- sqrt(Sens*Spec)
-  ERSG <- sqrt(ESens*ESpec)
-  ARS <- (RSG- ERSG)/(1-ERSG)
-  if(is.nan(ARS)) {
-    ARS <- 0
-  }
-  return(ARS)
-}
-
-ARStransform <- function(ARS, theta=7) {
-  trun.ARS <-ifelse(ARS<0,0,ARS)
-  trsf.ARS <- theta*exp(-theta*trun.ARS)
-  return(trsf.ARS)
-}
-
-##########################
 ##Pathway enrich analysis###
 ##########################
 
@@ -1078,7 +980,7 @@ parseRelation <- function(pathwayID, keggSpecies="hsa", binary = T, sep = "-") {
   
   ## if no relation edge, just return
   if(relationNum == 0){
-    print(paste0("There is no relations in ", pathName))
+    print(paste0("There is no topological connected gene nodes in ", pathName))
     return(relation.mat)
   }
   
@@ -1089,7 +991,7 @@ parseRelation <- function(pathwayID, keggSpecies="hsa", binary = T, sep = "-") {
       relation.mat[entryNames[[entry1[i]]],entryNames[[entry2[i]]]]=1
     }
     else{
-      print(paste("relation not included:",entry1[i], entry2[i], sep=" "))
+      print(paste("connections not included:",entry1[i], entry2[i], sep=" "))
     }
   }
   
@@ -1303,4 +1205,292 @@ KEGG_module_topology_plot = function(res_KEGG_module,which_to_draw = "all",fileP
     }
   }
   setwd(orig.path)
+}
+
+KEGG_module = function(mcmc.merge.list,dataset.names,
+                       KEGGspecies="hsa",
+                       KEGGpathwayID,
+                       KEGG.dataGisTopologyG = FALSE,
+                       KEGG.dataG2topologyG = NULL,
+                       data.pair,
+                       gene_type = c("discordant","concordant"),
+                       DE_PM_cut = 0.2, minM = 4, maxM = NULL,
+                       B = 1000, cores = 1,
+                       search_method = c("Exhaustive","SA"),
+                       reps_eachM = 1,
+                       topG_from_previous=1,
+                       Tm0=10,mu=0.95,epsilon=1e-5,N=3000,
+                       Elbow_plot = T, filePath = getwd(),
+                       seed = 12345, sep = "-"){
+  if(minM < 2){
+    stop("minM has to be larger than 1.")
+  }
+  
+  dat1.name = data.pair[[1]]
+  dat2.name = data.pair[[2]]
+  dat1 = mcmc.merge.list[[match(dat1.name,dataset.names)]]
+  dat2 = mcmc.merge.list[[match(dat2.name,dataset.names)]]
+  signPM.mat = cbind(apply(dat1,1,mean),apply(dat2,1,mean))
+  
+  #match data names and gene names on KEGG topology
+  if(KEGG.dataGisTopologyG == TRUE){
+    topologyG = rownames(signPM.mat)
+  }else if(!is.null(KEGG.dataG2topologyG)){
+    topologyG = KEGG.dataG2topologyG[match(rownames(signPM.mat),KEGG.dataG2topologyG[,1]),2]
+    na.index = which(is.na(topologyG))
+    if(length(na.index != 0)){
+      topologyG = topologyG[-na.index]
+      signPM.mat = signPM.mat[-na.index,]
+    }
+    
+  }else if(KEGGspecies == "hsa"){
+    map.ls = as.list(org.Hs.eg.db::org.Hs.egALIAS2EG)
+    topologyG = sapply(rownames(signPM.mat),function(g) map.ls[[g]][[1]])
+    na.index = sapply(topologyG, is.null)
+    if(sum(na.index) != 0){
+      topologyG = topologyG[!na.index]
+      signPM.mat = signPM.mat[!na.index,]
+    }
+    
+  }else if(KEGGspecies == "mmu"){
+    map.ls = as.list(org.Mm.eg.db::org.Mm.egALIAS2EG)
+    topologyG = sapply(rownames(signPM.mat),function(g) map.ls[[g]][[1]])
+    na.index = sapply(topologyG, is.null)
+    if(sum(na.index) != 0){
+      topologyG = topologyG[!na.index]
+      signPM.mat = signPM.mat[!na.index,]
+    }
+    
+  }else if(KEGGspecies == "rno"){
+    map.ls = as.list(as.list(org.Rn.eg.db::org.Rn.egALIAS2EG))
+    topologyG = sapply(rownames(signPM.mat),function(g) map.ls[[g]][[1]])
+    na.index = sapply(topologyG, is.null)
+    if(sum(na.index) != 0){
+      topologyG = topologyG[!na.index]
+      signPM.mat = signPM.mat[!na.index,]
+    }
+    
+  }else if(KEGGspecies == "cel"){
+    wormbase = biomaRt::useMart(biomart = "parasite_mart",
+                                host = "https://parasite.wormbase.org",
+                                port = 443)
+    wormbase = useDataset(mart = wormbase, dataset = "wbps_gene")
+    map.mat = getBM(attributes = c("entrezgene_name","wormbase_gseq"),
+                    filters = "entrezgene_name",
+                    values = rownames(signPM.mat),
+                    mart = wormbase)
+    topologyG = paste0("CELE_",map.mat[match(rownames(signPM.mat),map.mat[,"entrezgene_name"]),"wormbase_gseq"])
+    
+    na.index = which(topologyG == "CELE_NA")
+    if(length(na.index != 0)){
+      topologyG = topologyG[-na.index]
+      signPM.mat = signPM.mat[-na.index,]
+    }
+  }else if(KEGGspecies == "dme"){
+    map.ls0 = as.list(org.Dm.eg.db::org.Dm.egALIAS2EG)
+    EntrezID = sapply(rownames(signPM.mat),function(g) map.ls0[[g]][[1]])
+    map.ls = as.list(org.Dm.eg.db::org.Dm.egFLYBASECG)
+    topologyG = paste0("Dmel_",sapply(EntrezID,function(g) ifelse(is.null(g), NA, map.ls[[g]][[1]])))
+    
+    na.index = which(topologyG == "Dmel_NA")
+    if(length(na.index != 0)){
+      topologyG = topologyG[-na.index]
+      signPM.mat = signPM.mat[-na.index,]
+    }
+  }else{
+    stop("Please provide mapping between data genes and topology genes when they are of different gene name types and species is not one of 'hsa', 'mmu','rno','cel'or'dme'.")
+  }
+  
+  rownames(signPM.mat) = topologyG
+  adjacent_mat = parseRelation(pathwayID = KEGGpathwayID, keggSpecies = KEGGspecies, sep = sep)
+  xmlG = row.names(adjacent_mat)[grep(KEGGspecies,row.names(adjacent_mat))]
+  xmlG = gsub(paste0(KEGGspecies,":"),"",xmlG)
+  xmlG.ls = lapply(xmlG, function(x){
+    strsplit(x,sep)[[1]]
+  })
+  
+  row.names(adjacent_mat) = colnames(adjacent_mat) = gsub(paste0(KEGGspecies,":"),"",row.names(adjacent_mat))
+  
+  mergePMls = lapply(1:length(xmlG.ls), function(x){
+    genes = xmlG.ls[[x]]
+    cmG = intersect(topologyG,genes)
+    if(length(cmG) !=0){
+      sub.signPM.mat = matrix(signPM.mat[cmG,],ncol = 2)
+      avgPM = apply(sub.signPM.mat, 2, mean)
+      return(avgPM)
+    }
+  })
+  names(mergePMls) = xmlG
+  mergePMmat = do.call(rbind,mergePMls)
+  
+  #discordant/concordant genes definition
+  #discordant/concordant genes definition
+  if(all(abs(mergePMmat[,1])<=DE_PM_cut | abs(mergePMmat[,2])<=DE_PM_cut)){
+    DE_PM_cut = -1
+    print(paste0("All genes with DE strength greater than the cutoff value for posterior probability of DE are not connected. Removed the cutoff criterion to consider all ",gene_type," genes regardless of its DE stength."))
+  }
+  if(gene_type == "discordant"){
+    
+    if(sum(mergePMmat[,1]*mergePMmat[,2]<0) == 0){
+      stop("No discordant genes are topologically connected. Probably dut to low DE strength in one study. Please check the genePM plot. ")
+    }else{
+      nodes = unique(rownames(mergePMmat)[which(mergePMmat[,1]*mergePMmat[,2]<0&abs(mergePMmat[,1])>DE_PM_cut&abs(mergePMmat[,2])>DE_PM_cut)])
+    }
+    
+  }else if(gene_type == "concordant"){
+    
+    if(sum(mergePMmat[,1]*mergePMmat[,2]<0) == 0){
+      stop("No concordant genes are topologically connected. Probably dut to low DE strength in one study. Please check the genePM plot. ")
+    }else{
+      nodes = unique(rownames(mergePMmat)[which(mergePMmat[,1]*mergePMmat[,2]>0&abs(mergePMmat[,1])>DE_PM_cut&abs(mergePMmat[,2])>DE_PM_cut)])
+    }
+  }else{
+    stop("gene_type has to be 'discordant' or 'concordant'.")
+  }
+  
+  undir_adj_mat = adjacent_mat
+  for(i in 1:nrow(adjacent_mat)){
+    for (j in 1:ncol(adjacent_mat)) {
+      undir_adj_mat[i,j] = max(adjacent_mat[i,j],adjacent_mat[j,i])
+      undir_adj_mat[j,i] = max(adjacent_mat[i,j],adjacent_mat[j,i])
+    }
+  }
+  g = graph_from_adjacency_matrix(undir_adj_mat,mode="undirected")
+  sp.mat <- shortest.paths(g)
+  
+  d = degree(g)
+  sort.d = sort(d,decreasing = T)[nodes]
+  
+  sub.adj.mat = undir_adj_mat[match(nodes,row.names(undir_adj_mat)),
+                              match(nodes,colnames(undir_adj_mat))]
+  #dim(sub.adj.mat)
+  #dim(undir_adj_mat)
+  #sum(lower.tri(sub.adj.mat))/length(lower.tri(sub.adj.mat))
+  #(sum(lower.tri(undir_adj_mat))-sum(lower.tri(sub.adj.mat)))/(length(lower.tri(undir_adj_mat))-length(lower.tri(sub.adj.mat)))
+  
+  if(is.null(maxM)){
+    maxM = length(nodes)
+  }else{
+    maxM = min(length(nodes),maxM)
+  }
+  module.size = minM:maxM
+  
+  search_method = match.arg(search_method)
+  if(search_method == "Exhaustive"){
+    minG.ls = mclapply(1:length(module.size),function(i){
+      m = module.size[i]
+      m.combn = combn(x=nodes,m=m)
+      
+      ## observed ones:
+      
+      asp.m = rep(NA,ncol(m.combn))
+      
+      
+      for(j in 1:ncol(m.combn)){
+        node.set <- m.combn[,j]
+        set.mat <- sp.mat[match(node.set,row.names(sp.mat)),
+                          match(node.set,colnames(sp.mat))]
+        asp.m[j] <- mean(c(set.mat[lower.tri(set.mat)]))
+      }
+      
+      (minG = m.combn[,which(asp.m == min(asp.m))])
+      
+      set.seed(seed)
+      asp.m.perm = rep(NA,B)
+      
+      for(b in 1:B){
+        permute.set <- sample(xmlG,m)
+        permute.mat <- sp.mat[match(permute.set,row.names(sp.mat)),
+                              match(permute.set,colnames(sp.mat))]
+        asp.m.perm[b] <- mean(c(permute.mat[lower.tri(permute.mat)]))
+        
+      }
+      
+      p.observed = (sum(asp.m.perm<= min(asp.m)) + 1)/(B+1)
+      p.sd = sqrt(p.observed*(1-p.observed)/B)
+      null.sp.mean = mean(asp.m.perm)
+      null.sp.median = median(asp.m.perm)
+      
+      return(list(minG = minG, p.mean = p.observed, p.sd = p.sd,sp = min(asp.m),
+                  null.sp.mean = null.sp.mean,
+                  null.sp.median = null.sp.median))
+    },mc.cores = cores)
+  }else{
+    minG.ls = list()
+    for(i in 1:length(module.size)){
+      M = module.size[i]
+      print(M)
+      if(M>min(module.size)){
+        G.ini.list = minG.ls[[i-1]]$top.G
+        minG.ls[[i]] = SA_module_M(sp.mat, xmlG, M, nodes, B = B,
+                                   G.ini.list=G.ini.list, reps_eachM = reps_eachM,
+                                   topG_from_previous=topG_from_previous,
+                                   Tm0=Tm0,mu=mu,epsilon=epsilon,
+                                   N=N,seed=seed)
+      }else{
+        minG.ls[[i]] = SA_module_M(sp.mat, xmlG, M, nodes, B = B,
+                                   G.ini.list=NULL, reps_eachM = reps_eachM,
+                                   topG_from_previous=topG_from_previous,
+                                   Tm0=Tm0,mu=mu,epsilon=epsilon,
+                                   N=N,seed=seed)
+      }
+    }
+  }
+  names(minG.ls) = paste0("minG",module.size)
+  
+  #Select best size
+  p.mean = sapply(minG.ls, function(x) x[["p.mean"]])
+  p.sd = sapply(minG.ls, function(x) x[["p.sd"]])
+  #obs.mean.ratio = sapply(minG.ls, function(x) x[["sp"]])/sapply(minG.ls, function(x) x[["null.sp.mean"]])
+  obs.median.ratio = sapply(minG.ls, function(x) x[["sp"]])/sapply(minG.ls, function(x) x[["null.sp.median"]])
+  obs.median.ratio[is.na(obs.median.ratio)] = 0
+  obs.sp = sapply(minG.ls, function(x) x[["sp"]])
+  
+  index = which.min(p.mean)
+  p.cut = p.mean[index]+2*p.sd[index]
+  finalSelect = names(minG.ls)[max(which(p.mean<p.cut & 1:length(p.mean)>=index))]
+  
+  KEGGpathwayID_spec = paste0(KEGGspecies,KEGGpathwayID)
+  if(Elbow_plot == T){
+    names(p.mean) = names(p.sd) = module.size
+    pL = sapply(p.mean-2*p.sd, function(x) ifelse(x<0,0,x))
+    df = data.frame(logp.observed = -log10(p.mean),
+                    logp.max = -log10(pL),
+                    logp.min = -log10(p.mean+2*p.sd),
+                    size = module.size)
+    png(paste0(filePath,"/",KEGGpathwayID_spec,"_",gene_type,"_",dat1.name,"_",dat2.name,"_",search_method,"_elbow_plot.png"))
+    p = ggplot(df, aes(x=size, y=logp.observed)) +
+      geom_errorbar(aes(ymin=logp.min, ymax=logp.max), width=.1) +
+      geom_line() +
+      geom_point() +
+      ylim(0,3.1)+
+      labs(title = paste0(KEGGpathwayID_spec,"_",gene_type,"_",dat1.name,"_",dat2.name),y = "-log10(p-value)")
+    print(p)
+    dev.off()
+    
+    df.ratio = data.frame(obs.sp, obs.median.ratio, size = module.size)
+    
+    # png(paste0(filePath,"/",KEGGpathwayID_spec,"_",gene_type,"_",dat1.name,"_",dat2.name,"_",search_method,"_avgSP.png"))
+    # p = ggplot(df.ratio, aes(x=size, y=obs.sp)) +
+    #   geom_line() +
+    #   geom_point()+
+    #   labs(title = paste0(KEGGpathwayID_spec,"_",gene_type,"_",dat1.name,"_",dat2.name),y = "module average shortest path value")
+    # print(p)
+    # dev.off()
+    
+    # png(paste0(filePath,"/",KEGGpathwayID_spec,"_",gene_type,"_",dat1.name,"_",dat2.name,"_",search_method,"avgSP_ratio_obs_to_median.png"))
+    # p = ggplot(df.ratio, aes(x=size, y=obs.median.ratio)) +
+    #   geom_line() +
+    #   geom_point() +
+    #   labs(title = paste0(KEGGpathwayID_spec,"_",gene_type,"_",dat1.name,"_",dat2.name),y = "average module shortest path/median(null average shortest path)")
+    # print(p)
+    # dev.off()
+    
+  }
+  return(list(minG.ls=minG.ls,bestSize = finalSelect,
+              mergePMmat = mergePMmat,
+              KEGGspecies = KEGGspecies,
+              KEGGpathwayID = KEGGpathwayID,
+              data.pair = data.pair,
+              module.type = gene_type))
 }

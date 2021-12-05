@@ -3,7 +3,7 @@ multiOutput <- function(mcmc.merge.list,dataset.names,select.pathway.list,ACS_AD
                         optK=NULL,sil_cut=0.1,use_ADS=FALSE,hashtb=NULL,keywords_cut=0.05,
                         text.permutation = "all",comemberProb_cut=0.7,
                         ViewPairSelect = NULL,kegg.species="hsa",KEGG.dataGisEntrezID=FALSE,KEGG.dataG2EntrezID=NULL,KEGG.pathID2name=NULL,
-                        reactome.species="HSA",Reactome.dataG2TopologyGtype=NULL,Reactome.pathID2name=NULL) {#ViewPairSelect:a subset of dataset.names for keggView
+                        reactome.species="HSA",Reactome.dataG2TopologyGtype=NULL,Reactome.pathID2name=NULL) {
   
   
   if(length(output)==0 || is.null(output)){
@@ -53,6 +53,16 @@ multiOutput <- function(mcmc.merge.list,dataset.names,select.pathway.list,ACS_AD
     cluster = list(cluster.assign=cluster.assign,scatter.index=scatter.index)
     save(cluster,file = "cluster_labels.RData")
     
+    cluster.assign2 = cluster.assign[-scatter.index]
+    rmClust = setdiff(unique(cluster.assign),unique(cluster.assign2))
+    if(length(rmClust) != 0){
+      msg = paste0("Cluster ",rmClust," is removed because of scatterness. Please consider a smaller cluster number.")
+      print(msg)
+    }else{
+      msg = NULL
+    }
+    #sendInfoMessage(session,paste0("Cluster ",rmClust," is removed because of scatterness. Please consider a smaller cluster number."))
+    
     #4. mds plot
     res <- mdsPathway(acsPvalue=ASpvalue.mat,
                       cluster.assign=cluster.assign,
@@ -88,13 +98,14 @@ multiOutput <- function(mcmc.merge.list,dataset.names,select.pathway.list,ACS_AD
       for(k in 1:K) {
         model.cluster.result[[k]] <- SA_algo(unlist(c(ASpvalue.mat[k,])),dataset.names,sep="_")
       }
-      pathway.cluster.assign = cluster.assign
-      pathway.cluster.assign[scatter.index] = "scatter"
       
       if(is.null(scatter.index)){
+        pathway.cluster.assign = cluster.assign
         Cvec = 1:optK
       }else{
-        Cvec = c(1:optK,"scatter")
+        pathway.cluster.assign = cluster.assign
+        pathway.cluster.assign[scatter.index] = "scatter"
+        Cvec = sort(unique(pathway.cluster.assign))
       }
       
       comember.list <- vector("list",length=length(Cvec))
@@ -164,14 +175,16 @@ multiOutput <- function(mcmc.merge.list,dataset.names,select.pathway.list,ACS_AD
         dev.off()
       }
     }
+    CluterLabelwithScatter = cluster.assign 
+    CluterLabelwithScatter[scatter.index] = "scatter"
     
     if(is.null(hashtb)){
-      return(list(CluterLabelwithoutScatter = cluster.assign, CluterLabelwithScatter = cluster,
-                  scatter.index = scatter.index, Tm_filtered=NULL))
+      return(list(CluterLabelwithoutScatter = cluster.assign, CluterLabelwithScatter = CluterLabelwithScatter,
+                  scatter.index = scatter.index, Tm_filtered=NULL,msg=msg))
     }
     else{
-      return(list(CluterLabelwithoutScatter = cluster.assign, CluterLabelwithScatter = cluster,
-                  scatter.index = scatter.index, Tm_filtered=tm_filtered))
+      return(list(CluterLabelwithoutScatter = cluster.assign, CluterLabelwithScatter = CluterLabelwithScatter,
+                  scatter.index = scatter.index, Tm_filtered=tm_filtered,msg=msg))
     }
   }
   setwd(orig.path)
@@ -917,58 +930,72 @@ mdsModel <- function(acsPath,model.name,pathway.name,sep) {
   
   diag(d) <- 0
   dist <- as.dist(d,upper = TRUE, diag = TRUE)
-  fit <- sammon(d=dist, y= jitter(cmdscale(dist, 2)), k=2) # k is the number of dim
-  
-  x <- fit$points[,1]
-  y <- fit$points[,2]
-  xlimit <- ifelse(abs(min(x))>abs(max(x)),abs(min(x)),abs(max(x)))
-  ylimit <- ifelse(abs(min(y))>abs(max(y)),abs(min(y)),abs(max(y)))
-  
-  if(grepl("/|:",pathway.name)){
-    pathway.name <- gsub("/|:","_",pathway.name)
+  fit = NULL
+  tryCatch(
+    expr = {
+      fit <- sammon(d=dist, y= jitter(cmdscale(dist, 2)), k=2) # k is the number of dim
+    },
+    error = function(e){ 
+      print(e)
+    }
+  )
+  if(!is.null(fit)){
+    x <- fit$points[,1]
+    y <- fit$points[,2]
+    xlimit <- ifelse(abs(min(x))>abs(max(x)),abs(min(x)),abs(max(x)))
+    ylimit <- ifelse(abs(min(y))>abs(max(y)),abs(min(y)),abs(max(y)))
+    
+    if(grepl("/|:",pathway.name)){
+      pathway.name <- gsub("/|:","_",pathway.name)
+    }
+    
+    color <- rainbow(M,s=0.5,v=1,alpha=1)
+    png(paste(pathway.name,".png",sep=""))
+    p<-ggplot() +
+      ggtitle(pathway.name) +
+      xlab("Coordinate 1") + ylab("Coordinate 2") +
+      xlim(c(-xlimit-0.5,xlimit+0.5)) + ylim(c(-ylimit-0.5,ylimit+0.5)) +
+      geom_point(aes(x, y), color = color  ,size=6) +
+      geom_text_repel(aes(x, y, label = rownames(d),fontface="bold"),size=8) +
+      theme(plot.title = element_text(size = 15, hjust=0.5,face="bold"),
+            axis.text.x = element_text(size = 12),
+            axis.text.y = element_text(size = 12))
+    print(p)
+    dev.off()
+    
   }
-  
-  color <- rainbow(M,s=0.5,v=1,alpha=1)
-  png(paste(pathway.name,".png",sep=""))
-  p<-ggplot() +
-    ggtitle(pathway.name) +
-    xlab("Coordinate 1") + ylab("Coordinate 2") +
-    xlim(c(-xlimit-0.5,xlimit+0.5)) + ylim(c(-ylimit-0.5,ylimit+0.5)) +
-    geom_point(aes(x, y), color = color  ,size=6) +
-    geom_text_repel(aes(x, y, label = rownames(d),fontface="bold"),size=8) +
-    theme(plot.title = element_text(size = 15, hjust=0.5,face="bold"),
-          axis.text.x = element_text(size = 12),
-          axis.text.y = element_text(size = 12))
-  print(p)
-  dev.off()
 }
 
 genePM <- function(signPM.list, pathway.genes, pathway.name){
-  
-  M <- length(signPM.list)
-  model.name <- names(signPM.list)
-  std.genes <- intersect(names(signPM.list[[1]]),pathway.genes)
-  G <- length(std.genes)
-  
-  mat <- matrix(0,nrow=G,ncol=M)
-  rownames(mat) <- std.genes
-  colnames(mat) <- model.name
-  
-  for (m in 1:M){
-    mat[std.genes,m] <- signPM.list[[m]][std.genes]
-  }
-  
-  if(grepl("/",pathway.name)){
-    pathway.name <- gsub("/","-",pathway.name)
-  }
-  
-  #pdf(paste(pathway.name,'.pdf',sep=""))
-  jpeg(paste(pathway.name,".jpeg",sep=""),quality = 100)
-  p = pheatmap::pheatmap(mat, clustering_method = "complete",main=pathway.name,
-                         color = colorRampPalette(c("green","grey","red"))(n = 499),
-                         breaks = seq(-1,1,length.out = 500))
-  print(p)
-  dev.off()
+  tryCatch({
+    M <- length(signPM.list)
+    model.name <- names(signPM.list)
+    std.genes <- intersect(names(signPM.list[[1]]),pathway.genes)
+    G <- length(std.genes)
+    
+    mat <- matrix(0,nrow=G,ncol=M)
+    rownames(mat) <- std.genes
+    colnames(mat) <- model.name
+    
+    for (m in 1:M){
+      mat[std.genes,m] <- signPM.list[[m]][std.genes]
+    }
+    
+    if(grepl("/",pathway.name)){
+      pathway.name <- gsub("/","-",pathway.name)
+    }
+    
+    #pdf(paste(pathway.name,'.pdf',sep=""))
+    png(paste(pathway.name,".png",sep=""))
+    p = pheatmap::pheatmap(mat, clustering_method = "complete",main=pathway.name,
+                           color = colorRampPalette(c("green","grey","red"))(n = 499),
+                           breaks = seq(-1,1,length.out = 500))
+    p
+    dev.off()
+    
+  },error = function(e){
+    print(e)
+  })
   return(p)
 }
 

@@ -70,7 +70,7 @@ indPathway_ui <- function(id, label = "Individual Pathway") {
                helpIcon(ns('individual_analysis'), "Results will be saved to the working directory selected."),
                radioButtons(ns("save_scoreType"), "Select a score type", choices = list("c-scores" = "c_scores", "d-scores" = "d_scores"), selected = "c_scores"),
                
-               checkboxInput(ns("useADS"), 'Use c-scores to generate results', TRUE),
+               #checkboxInput(ns("useADS"), 'Use c-scores to generate results', TRUE),
                #uiOutput(ns('selectVisualizations')),
                checkboxGroupInput(ns('selectVisualizations'), 'Select types of graph to save',
                                   c("mdsModel - MDS map of studies for the selected pathway"="mdsModel",

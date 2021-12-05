@@ -8,13 +8,7 @@ pathway_server <- function(input, output, session){
     MergedDB=MergedDB.load(db), 
     MergedSpecies=MergedSpecies.load(db), 
     MergedStudyNames=MergedStudyNames.load(db), 
-    globalACS=NULL, globalACSpvalue=NULL,
-    pathwayACS=NULL, pathwayACSpvalue=NULL,
-    globalADS=NULL, globalADSpvalue=NULL,
-    pathwayADS=NULL, pathwayADSpvalue=NULL,
-    compType=NULL, pathway.list=NULL,
-    pathACS_summary=data.frame(NULL),
-    pathADS_summary=data.frame(NULL),
+    pathway.list=NULL,
     ACS_ADS_global=NULL,
     ACS_ADS_pathway=NULL
   )
@@ -36,13 +30,8 @@ pathway_server <- function(input, output, session){
       if(length(unique(DB$MergedSpecies))<2) {
         stop("At least two species are needed")
       }
-      if(length(DB$MergedDB)==2 & length(unique(DB$MergedSpecies))==2){
-        DB$compType <- "single"
-      }else{
-        DB$compType <- "multiple"
-      }
     }, session)
-    print(paste("saving directory is:, ", DB.load.working.dir(db), sep=""))
+    print(paste("saving directory is: ", DB.load.working.dir(db), sep=""))
   })
   
   # # select comparison type
@@ -65,19 +54,20 @@ pathway_server <- function(input, output, session){
         pathway.list = get(load(file$datapath))
       }
     }else {
-      selected = input$pathwayfile_ex
-      print(selected)
-      data("full.pathway.list")
-      full.pathway.list.short = list("KEGG"=kegg.pathway.list,
-                                     "Reactome"=reactome.pathway.list,
-                                     "GO"=go.pathway.list,
-                                     "Biocarta"=biocarta.pathway.list,
-                                     "PID"=pid.pathway.list,
-                                     "Wiki"=wiki.pathway.list,
-                                     "KEGG_cel"=worm.pathway.list[grep("KEGG",names(worm.pathway.list))],
-                                     "Reactome_CEL"=worm.pathway.list[grep("Reactome",names(worm.pathway.list))])
-      pathway.list = unlist(full.pathway.list.short[input$pathwayfile_ex],recursive = F)
-      names(pathway.list) = sapply(strsplit(names(pathway.list),".",fixed = T),function(x) paste(x[-1],collapse = "_"))
+      print(paste0("Selected pathway database: ",input$pathwayfile_ex))
+      data(input$pathwayfile_ex)
+      pathway.list = unlist(lapply(input$pathwayfile_ex, function(x) eval(parse(text = x))),recursive = F)
+      
+      # full.pathway.list.short = list("KEGG"=kegg.pathway.list,
+      #                                "Reactome"=reactome.pathway.list,
+      #                                "GO"=go.pathway.list,
+      #                                "Biocarta"=biocarta.pathway.list,
+      #                                "PID"=pid.pathway.list,
+      #                                "Wiki"=wiki.pathway.list,
+      #                                "KEGG_cel"=worm.pathway.list[grep("KEGG",names(worm.pathway.list))],
+      #                                "Reactome_CEL"=worm.pathway.list[grep("Reactome",names(worm.pathway.list))])
+      # pathway.list = unlist(full.pathway.list.short[input$pathwayfile_ex],recursive = F)
+      # names(pathway.list) = sapply(strsplit(names(pathway.list),".",fixed = T),function(x) paste(x[-1],collapse = "_"))
     }
     pathway.list
     
@@ -280,27 +270,42 @@ pathway_server <- function(input, output, session){
       
       setwd(DB.load.working.dir(db))
       save(res, file="res_clustPath.RData")
-      message = paste("Pathway clustering results are saved")
+      message = paste0("Pathway clustering results are saved. ",res$msg)
       sendSuccessMessage(session, message)
       
       setwd(path_old)
       if(length(DB$MergedDB) > 1){
+        CluterLabelwithScatter = res$CluterLabelwithoutScatter[-res$scatter.index]
+        rmClust = setdiff(unique(res$CluterLabelwithoutScatte),unique(CluterLabelwithScatter))
+        
+        if(length(rmClust) != 0){
+          
+        }
+        
+        
         lapply(1:input$K_ACS, function(n){
-          output[[paste0("clustInfo", n)]] = renderText({
-            paste0("Cluster ", n,":")
-          })
-          output[[paste0("keywords",n)]] = DT::renderDataTable({
-            res$Tm_filtered[[as.numeric(n)]]
-          })
+          if(length(rmClust) == 0 |(length(rmClust) != 0 & n != rmClust)){
+            output[[paste0("clustInfo", n)]] = renderText({
+              paste0("Cluster ", n,":")
+            })
+            output[[paste0("keywords",n)]] = DT::renderDataTable({
+              res$Tm_filtered[[as.numeric(n)]]
+            })
+          }else{
+            output[[paste0("clustInfo", n)]] = renderText({
+              paste0("Cluster ", n," is removed because of scatterness. Please consider a smaller cluster nunmber.")
+            }) 
+          }
         })
         
         if(length(DB$MergedDB)>2) {
           lapply(1:input$K_ACS, function(n){
-            img.src <- paste0(DB.load.working.dir(db),"/comemberPlot/ComemMat_cluster_",n,"_threshold_",input$comProbCut, ".jpeg")
-            output[[paste0("comemPlot", n)]] = renderImage({
-              list(src=img.src, contentType='image/png', alt="module")
-            },deleteFile=FALSE)
-            
+            if(length(rmClust) == 0 |(length(rmClust) != 0 & n != rmClust)){
+              img.src <- paste0(DB.load.working.dir(db),"/comemberPlot/ComemMat_cluster_",n,"_threshold_",input$comProbCut, ".jpeg")
+              output[[paste0("comemPlot", n)]] = renderImage({
+                list(src=img.src, contentType='image/png', alt="module")
+              },deleteFile=FALSE)
+            }
           })
         }
       }
@@ -360,13 +365,15 @@ pathway_server <- function(input, output, session){
             DEevid[j,ds] <- mean(abs(pm.list[[ds]])[intergenej],na.rm = T)
           }
         }
-        save(DEevid, file = paste0(DB.load.working.dir(db),"/DEevidMat.RData"))
-        
-        if(file.exists(paste0(DB.load.working.dir(db),"/DEevidMat.RData"))){
-          load(paste0(DB.load.working.dir(db),"/DEevidMat.RData"))
-          ClustDEevid$DEevid = DEevid
-          print("Finish DE matrix")
-        }
+        ClustDEevid$DEevid = DEevid
+        # 
+        # save(DEevid, file = paste0(DB.load.working.dir(db),"/DEevidMat.RData"))
+        # 
+        # if(file.exists(paste0(DB.load.working.dir(db),"/DEevidMat.RData"))){
+        #   load(paste0(DB.load.working.dir(db),"/DEevidMat.RData"))
+        #   ClustDEevid$DEevid = DEevid
+        #   print("Finish DE matrix")
+        # }
         
         #Plot
         if(!is.null(ClustDEevid$res)){
@@ -387,7 +394,7 @@ pathway_server <- function(input, output, session){
           ADSp <- ADS_pvalue[,paste(ds1,ds2,sep="_")]
           size.scale = 1/length(input$ACS_DEgroup)
           plist <- ACS_ADS_DE(ds1,ds2,DEevid1,DEevid2, ACSp, ADSp, cluster.lb, size.scale = size.scale)
-          save(plist, file = paste0(DB.load.working.dir(db),"/plist.RData"))
+          #save(plist, file = paste0(DB.load.working.dir(db),"/plist.RData"))
           return(plist)
         })
         
@@ -474,7 +481,7 @@ pathway_server <- function(input, output, session){
   #Generate infoMat and pathways
   Info_func = function(){
     if (!is.null(ClustDEevid$DEevid)){
-      cluster = ClustDEevid$res$CluterLabelwithScatter #withCluster indicator will be used to denote color
+      #cluster = ClustDEevid$res$CluterLabelwithScatter #withCluster indicator will be used to denote color
       DEevid = ClustDEevid$DEevid
       #tmWd = sapply(1:length(ClustDEevid$res$Tm_filtered), function(x) paste(row.names(ClustDEevid$res$Tm_filtered[[x]])[1:10],collapse = ", "))
       #tmDf = data.frame(cluster = 1:length(unique(cluster)),KeyWds = tmWd)
@@ -746,11 +753,27 @@ pathway_server <- function(input, output, session){
   output$exist_pathwayfile = renderUI({
     if(input$select_pathwayfile == "exist"){
       checkboxGroupInput(ns("pathwayfile_ex"), "Choose from:",
-                         c("KEGG (homo sapiens)"="KEGG","Reactome (homo sapiens)"="Reactome","Gene Ontology (homo sapiens)"="GO",
-                           "Biocarta (homo sapiens)"="Biocarta","Pathway Interaction Database (homo sapiens)"="PID",
-                           "WikiPathways (homo sapiens)"="Wiki",
-                           "KEGG (caenorhabditis elegans)"="KEGG_worm","Reactome (caenorhabditis elegans)"="Reactome_worm"))
-      }
+                         c("KEGG homo sapiens (gene symbols)"="kegg.pathway.list_hsa",
+                           "Reactome homo sapiens (gene symbols)"="reactome.pathway.list_hsa",
+                           "Gene Ontology homo sapiens (gene symbols)"="go.pathway.list_hsa",
+                           "Biocarta homo sapiens (gene symbols)"="biocarta.pathway.list_hsa",
+                           "Pathway Interaction Database homo sapiens (gene symbols)"="pid.pathway.list_hsa",
+                           "WikiPathways homo sapiens (gene symbols)"="wiki.pathway.list_hsa",
+                           
+                           "KEGG caenorhabditis elegans (sequence names)"="kegg.pathway.list_cel",
+                           "Reactome caenorhabditis elegans (sequence names)"="kegg.pathway.list_cel",
+                           "KEGG caenorhabditis elegans (gene symbols)"="kegg.pathway.list_cel_GeneNames",
+                           "Reactome caenorhabditis elegans (gene symbols)"="reactome.pathway.list_cel_GeneNames",
+                           
+                           "KEGG drosophila melanogaster (gene symbols)"="kegg.pathway.list_dme",
+                           "Reactome drosophila melanogaster (gene symbols)"="reactome.pathway.list_dme",
+                           
+                           "KEGG mus musculus (gene symbols)"="kegg.pathway.list_mmu",
+                           "Reactome mus musculus (gene symbols)"="reactome.pathway.list_mmu",
+                           
+                           "KEGG rattus norvegicus (gene symbols)"="kegg.pathway.list_rno",
+                           "Reactome rattus norvegicus (gene symbols)"="reactome.pathway.list_rno"))
+    }
   })
   
   output$upload_hashtbfile = renderUI({
