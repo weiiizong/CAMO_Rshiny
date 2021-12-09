@@ -59,7 +59,7 @@ global_server <- function(input, output, session){
                                              measure=input$measure, B=input$permNumGlobal)
       save(ACS_ADS_global, file="ACS_ADS_global.RData")
       DB$ACS_ADS_global <- ACS_ADS_global
-      print("ACS_ADS_global saved")
+      print("Genome-wide c-scores and d-scores are saved as 'ACS_ADS_global'.")
       
       load("ACS_ADS_global.RData")
       DB$ACS_ADS_global <- ACS_ADS_global
@@ -150,7 +150,7 @@ global_server <- function(input, output, session){
           }
         }
       })
-      sendSuccessMessage(session, "Genome-wide c-scores & d-scores are saved")
+      sendSuccessMessage(session, "Genome-wide c-scores & d-scores are saved as 'ACS_ADS_global'.")
     }, session)
     setwd(path_old)
     done(session)
@@ -168,12 +168,12 @@ global_server <- function(input, output, session){
       DB$ACS_ADS_global <- ACS_ADS_global
       res <- mdsGlobal(DB$ACS_ADS_global$ACS,DB$MergedStudyNames, sep="_",
                        file="globalMDS.pdf")
-      print("Genome-wide MDS plot is done")
+      print("Genome-wide MDS map is done")
       output$globalMdsFig <- renderPlot({
         res
       }, width = 600)
       setwd(path_old)
-      sendSuccessMessage(session, "Genome-wide MDS plot is done")
+      sendSuccessMessage(session, "Genome-wide MDS map is done")
     }, session)
     setwd(path_old)
     done(session)

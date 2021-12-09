@@ -12,7 +12,7 @@ saved_data_ui <- function(id, label = "saved data of single study or multiple st
                       "homo sapiens (hs) vs caenorhabditis elegans (ce)"="hs_ce_orth",
                       "homo sapiens (hs) vs drosophila melanogaster (dm)"="hs_dm_orth",
                       "caenorhabditis elegans (ce) vs drosophila melanogaster (dm)"="ce_dm_orth",
-                      "Upload an orthologs file"="upload"),
+                      "Upload an ortholog file"="upload"),
                     selected = NULL),
         uiOutput(ns("upload_orthologous")),
         # fileInput(ns("orthologous"), 'Upload orthologous file',

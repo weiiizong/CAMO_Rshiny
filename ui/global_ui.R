@@ -20,7 +20,7 @@ global_ui <- function(id, label = "Global") {
                
                hr(),
                actionButton(ns("plotGlobalMDS"),
-                            'Genome-wide MDS plot',
+                            'Genome-wide MDS map',
                             class="btn-success",
                             icon = icon("play")),   
                tags$hr()

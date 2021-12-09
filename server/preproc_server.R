@@ -140,7 +140,7 @@ preproc_server <- function(input, output, session) {
       signPM.vec <- apply(STUDY$MCMC,1,mean)
       SUMMARY$DESummaryPM <- cbind(SUMMARY$DESummary, signPM.vec)
       rownames(SUMMARY$DESummaryPM) <- STUDY$genes
-      colnames(SUMMARY$DESummaryPM) <- c("pvalue", "logFC","Posterior probability of DE assignment")
+      colnames(SUMMARY$DESummaryPM) <- c("pvalue", "logFC","Posterior DE probability")
     }, session)
   
     done(session)

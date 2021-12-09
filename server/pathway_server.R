@@ -150,7 +150,7 @@ pathway_server <- function(input, output, session){
         }
       })
       
-      sendSuccessMessage(session, "Pathway ACS&ADS are saved")
+      sendSuccessMessage(session, "Pathway-level c-scores & d-scores are saved as 'ACS_ADS_pathway'.")
       
     }, session)
     setwd(path_old)
@@ -447,9 +447,9 @@ pathway_server <- function(input, output, session){
           }
         })
         
-        print("ACS/ADS-DE plot is done")
+        print("c/d scores-DE evidence plot is done")
         setwd(path_old)
-        sendSuccessMessage(session, "ACS/ADS-DE plot is done")
+        sendSuccessMessage(session, "c/d scores-DE evidence plot is done")
         
       }else{
         stop("At least two studies of distince species should be provided.")
@@ -778,7 +778,7 @@ pathway_server <- function(input, output, session){
   
   output$upload_hashtbfile = renderUI({
     if(input$select_hashtbfile == "upload"){
-      fileInput(ns("hashtbfile"), "upload a noun-pathway file for text mining (.RData/.rda)", accept = c(".RData",".rda"))
+      fileInput(ns("hashtbfile"), "Upload a noun-pathway file for text mining (.RData/.rda)", accept = c(".RData",".rda"))
     }
   })
   

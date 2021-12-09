@@ -41,13 +41,21 @@ saved_data_server <- function(input, output, session) {
     try({
       if(input$select_orthologous == "upload"){
         if(!is.null(input$orthologous)){
-          inFile <- input$orthologous
-          ext <- tools::file_ext(inFile$datapath)
-          req(inFile)
-          validate(need(ext == "csv", "Please upload a .csv"))
-          DB$full_ortholog = read.csv(inFile$datapath, stringsAsFactors = F,
-                                      header=T)
+          file <- input$orthologous
+          ext <- tools::file_ext(file$datapath)
+          req(file)
+          validate(need(ext == "RData"|ext == "rda", "Please upload a .RData or .rda file"))
+          DB$full_ortholog = get(load(file$datapath))
         }
+        # 
+        # if(!is.null(input$orthologous)){
+        #   inFile <- input$orthologous
+        #   ext <- tools::file_ext(inFile$datapath)
+        #   req(inFile)
+        #   validate(need(ext == "csv", "Please upload a .csv"))
+        #   DB$full_ortholog = read.csv(inFile$datapath, stringsAsFactors = F,
+        #                               header=T)
+        # }
       }else if(input$select_orthologous == "hs_mm_orth"){
         data(hs_mm_orth, package = "CAMO")
         DB$full_ortholog = hs_mm_orth
@@ -169,9 +177,7 @@ saved_data_server <- function(input, output, session) {
   
   output$upload_orthologous = renderUI({
     if(input$select_orthologous == "upload"){
-      fileInput(ns("orthologous"), 'Upload orthologs file (.csv)',
-                accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv'))
-      
+      fileInput(ns("orthologous"), "Upload an ortholog file (.RData/.rda)", accept = c(".RData",".rda"))
     }
   })
 }
